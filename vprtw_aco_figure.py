@@ -71,38 +71,51 @@ class VrptwAcoFigure:
                 
             plt.pause(1)
 
+    def generate_random_colors(self,num_colors):
+        colors = []
+        for i in range(num_colors):
+            color = "#{:06x}".format(random.randint(0, 0xFFFFFF))
+            colors.append(color)
+        return colors
+
     def _draw_line(self, path):
-        colors = ['red', 'green', 'blue', 'orange', 'yellow']
-        color_idx = 0 
+        # num_colors = 30
+        # colors = [self.generate_random_colors(num_colors) for _ in range(num_colors)]
 
-        line_color = colors[color_idx]
+        # # colors = ['red', 'green', 'blue', 'orange', 'yellow']
+        # color_idx = 0 
 
-    
+        # line_color = colors[color_idx]
+
+        line_color = (random.uniform(0, 1), random.uniform(0, 1), random.uniform(0, 1))
+
         # 根据path中index进行路径的绘制
         for i in range(1, len(path)):
             x_list = [self.nodes[path[i - 1]].x, self.nodes[path[i]].x]
             y_list = [self.nodes[path[i - 1]].y, self.nodes[path[i]].y]
 
-            p1 = (self.nodes[path[i]].x,self.nodes[path[i]].y)
+            # p1 = (self.nodes[path[i]].x,self.nodes[path[i]].y)
             p2 = (self.nodes[path[i-1]].x,self.nodes[path[i-1]].y)
             
             if (p2[0] == 35 and p2[1] == 35):
-                if color_idx== len(colors)-1:
-                    color_idx =0
-                else:
-                    color_idx+=1 
-                line_color = colors[color_idx]
+                # if color_idx== len(colors)-1:
+                #     color_idx =0
+                line_color = (random.uniform(0, 1), random.uniform(0, 1), random.uniform(0, 1))
 
-                print(f"line color changed at {p1} and {p2}, where line color = {line_color}" )
-                print(f"len colors:{len(colors)} - color idx {color_idx}")
+                # else:
+                #     color_idx+=1 
+                # line_color = colors[color_idx]
+
+                # print(f"line color changed at {p1} and {p2}, where line color = {line_color}" )
+                # print(f"len colors:{len(colors)} - color idx {color_idx}")
 
 
-            print("-"*150)
-            print(p1)
-            print(p2)
-            print("-"*50)
+            # print("-"*150)
+            # print(p1)
+            # print(p2)
+            # print("-"*50)
 
             # self.figure_ax.plot(x_list, y_list, color=self._line_color, linewidth=1.5, label='line')
-            _line = self.figure_ax.plot(x_list, y_list, color=line_color, linewidth=1.5, label='line')
-            self.lines.append(_line)
-            plt.pause(1)
+            self.figure_ax.plot(x_list, y_list, color=line_color, linewidth=1, label='line')
+            # self.lines.append(_line)
+            plt.pause(0.05)
