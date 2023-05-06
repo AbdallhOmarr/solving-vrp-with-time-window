@@ -335,3 +335,6 @@ class Ant:
         self.travel_path = new_path
         self.total_travel_distance = new_path_distance
         print('[local_search_procedure]: local search finished')
+
+
+    

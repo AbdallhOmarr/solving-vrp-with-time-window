@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 from multiprocessing import Queue as MPQueue
 
-import random 
+import random
 
 
 class VrptwAcoFigure:
@@ -20,17 +20,29 @@ class VrptwAcoFigure:
         self.figure = plt.figure(figsize=(10, 10))
         self.figure_ax = self.figure.add_subplot(1, 1, 1)
         self.path_queue = path_queue
-        self._depot_color = 'k'
-        self._customer_color = 'steelblue'
-        self._line_color = 'darksalmon'
+        self._depot_color = "k"
+        self._customer_color = "steelblue"
+        self._line_color = "darksalmon"
         self.lines = []
+
     def _draw_point(self):
         # 画出depot
-        self.figure_ax.scatter([self.nodes[0].x], [self.nodes[0].y], c=self._depot_color, label='depot', s=40)
+        self.figure_ax.scatter(
+            [self.nodes[0].x],
+            [self.nodes[0].y],
+            c=self._depot_color,
+            label="depot",
+            s=40,
+        )
 
         # 画出customer
-        self.figure_ax.scatter(list(node.x for node in self.nodes[1:]),
-                               list(node.y for node in self.nodes[1:]), c=self._customer_color, label='customer', s=20)
+        self.figure_ax.scatter(
+            list(node.x for node in self.nodes[1:]),
+            list(node.y for node in self.nodes[1:]),
+            c=self._customer_color,
+            label="customer",
+            s=20,
+        )
         plt.pause(0.5)
 
     def run(self):
@@ -47,8 +59,10 @@ class VrptwAcoFigure:
                     info = self.path_queue.get()
 
                 path, distance, used_vehicle_num = info.get_path_info()
+                self.distance = distance
+                self.used_vehicle_num = used_vehicle_num
                 if path is None:
-                    print('[draw figure]: exit')
+                    print("[draw figure]: exit")
                     break
 
                 # 需要先记录要移除的line，不能直接在第一个循环中进行remove，
@@ -58,20 +72,27 @@ class VrptwAcoFigure:
                 #     if line._label == 'line':
                 #         remove_obj.append(line)
 
-
                 # for line in remove_obj:
                 #     self.figure_ax.lines.remove(line)
                 # remove_obj.clear()
-                for line in self.figure_ax.lines:
-                    line.remove()
-                
+                # for line in self.figure_ax.lines:
+                #     line.remove()
+
+                # for line in self.lines:
+                #     line.remove()
+                self.figure_ax.clear()
+                self._draw_point()
+
                 # 重新绘制line
-                self.figure_ax.set_title('travel distance: %0.2f, number of vehicles: %d ' % (distance, used_vehicle_num))
+                self.figure_ax.set_title(
+                    "travel distance: %0.2f, number of vehicles: %d "
+                    % (distance, used_vehicle_num)
+                )
                 self._draw_line(path)
-                
+
             plt.pause(1)
 
-    def generate_random_colors(self,num_colors):
+    def generate_random_colors(self, num_colors):
         colors = []
         for i in range(num_colors):
             color = "#{:06x}".format(random.randint(0, 0xFFFFFF))
@@ -83,7 +104,7 @@ class VrptwAcoFigure:
         # colors = [self.generate_random_colors(num_colors) for _ in range(num_colors)]
 
         # # colors = ['red', 'green', 'blue', 'orange', 'yellow']
-        # color_idx = 0 
+        # color_idx = 0
 
         # line_color = colors[color_idx]
 
@@ -95,20 +116,23 @@ class VrptwAcoFigure:
             y_list = [self.nodes[path[i - 1]].y, self.nodes[path[i]].y]
 
             # p1 = (self.nodes[path[i]].x,self.nodes[path[i]].y)
-            p2 = (self.nodes[path[i-1]].x,self.nodes[path[i-1]].y)
-            
-            if (p2[0] == 35 and p2[1] == 35):
+            p2 = (self.nodes[path[i - 1]].x, self.nodes[path[i - 1]].y)
+
+            if p2[0] == self.nodes[0].x and p2[1] == self.nodes[0].y:
                 # if color_idx== len(colors)-1:
                 #     color_idx =0
-                line_color = (random.uniform(0, 1), random.uniform(0, 1), random.uniform(0, 1))
+                line_color = (
+                    random.uniform(0, 1),
+                    random.uniform(0, 1),
+                    random.uniform(0, 1),
+                )
 
                 # else:
-                #     color_idx+=1 
+                #     color_idx+=1
                 # line_color = colors[color_idx]
 
                 # print(f"line color changed at {p1} and {p2}, where line color = {line_color}" )
                 # print(f"len colors:{len(colors)} - color idx {color_idx}")
-
 
             # print("-"*150)
             # print(p1)
@@ -116,6 +140,14 @@ class VrptwAcoFigure:
             # print("-"*50)
 
             # self.figure_ax.plot(x_list, y_list, color=self._line_color, linewidth=1.5, label='line')
-            self.figure_ax.plot(x_list, y_list, color=line_color, linewidth=1, label='line')
-            # self.lines.append(_line)
-            plt.pause(0.05)
+            line_drawn = self.figure_ax.plot(
+                x_list, y_list, color=line_color, linewidth=1, label="line"
+            )
+            self.lines.append(line_drawn)
+            plt.pause(0.01)
+
+        plot_name = "travel distance- %0.2f - , number of vehicles- %d " % (
+            self.distance,
+            self.used_vehicle_num,
+        )
+        plt.savefig(f"solutions/{plot_name}.png")
