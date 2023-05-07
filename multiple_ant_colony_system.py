@@ -35,7 +35,6 @@ class MultipleAntColonySystem:
     @staticmethod
     def stochastic_accept(index_to_visit, transition_prob):
         """
-        轮盘赌
         :param index_to_visit: a list of N index (list or tuple)
         :param transition_prob:
         :return: selected index
@@ -57,9 +56,9 @@ class MultipleAntColonySystem:
     @staticmethod
     def new_active_ant(ant: Ant, vehicle_num: int, local_search: bool, IN: np.numarray, q0: float, beta: int, stop_event: Event):
         """
-        按照指定的vehicle_num在地图上进行探索，所使用的vehicle num不能多于指定的数量，acs_time和acs_vehicle都会使用到这个方法
-        对于acs_time来说，需要访问完所有的结点（路径是可行的），尽量找到travel distance更短的路径
-        对于acs_vehicle来说，所使用的vehicle num会比当前所找到的best path所使用的车辆数少一辆，要使用更少的车辆，尽量去访问结点，如果访问完了所有的结点（路径是可行的），就将通知macs
+        Explore the map according to the specified vehicle_num. The number of vehicles used cannot exceed the specified quantity, and this method will be used for both acs_time and acs_vehicle.
+        For acs_time, it is necessary to visit all nodes (the path is feasible) and find the path with the shortest travel distance as much as possible.
+        For acs_vehicle, the number of vehicles used will be one less than the number of vehicles used in the best path currently found. To use fewer vehicles, try to visit nodes as much as possible. If all nodes are visited (the path is feasible), macs will be notified.
         :param ant:
         :param vehicle_num:
         :param local_search:
@@ -71,7 +70,8 @@ class MultipleAntColonySystem:
         """
         # print('[new_active_ant]: start, start_index %d' % ant.travel_path[0])
 
-        # 在new_active_ant中，最多可以使用vehicle_num个车，即最多可以包含vehicle_num+1个depot结点，由于出发结点用掉了一个，所以只剩下vehicle个depot
+        # In new_active_ant, a maximum of vehicle_num vehicles can be used, which means that there can be a maximum of vehicle_num+1 depot nodes. Since one departure node has been used, there are only vehicle_num depot nodes left.
+
         unused_depot_count = vehicle_num
 
         # 如果还有未访问的结点，并且还可以回到depot中
