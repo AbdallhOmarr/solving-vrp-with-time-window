@@ -20,6 +20,21 @@ class Solution:
         self.graph = graph
         self.dist_matrix = self.graph.node_dist_mat
 
+    def repair_route(self):
+        travel_path_copy = copy.deepcopy(self.travel_path)
+        delete_idx = []
+        for i, customer in enumerate(self.travel_path):
+            if i > len(self.travel_path) - 2:
+                break
+
+            if customer == 0 and self.travel_path[i + 1] == 0:
+                delete_idx.append(i + 1)
+
+        travel_path_copy = np.delete(travel_path_copy, delete_idx)
+
+        self.travel_path = copy.deepcopy(travel_path_copy)
+        self.get_total_fitness()
+
     def calculate_path_distance(self):
         total_distance = 0
         for i, customer in enumerate(self.travel_path):
@@ -31,6 +46,9 @@ class Solution:
 
     def get_total_fitness(self):
         self.travel_distance = self.calculate_path_distance()
+        if self.travel_distance == 0:
+            return 0
+
         self.fitness_value = 1 / self.travel_distance * 1000
         return self.fitness_value
 
@@ -107,56 +125,73 @@ class GeneticAlgorithm:
         lst = solution.travel_path
         tabu_lst = [0]
         population = []
-        for i in range(iterations):
-            current_lst = copy.deepcopy(lst)
-            c1 = random.choice(current_lst)
-            c2 = random.choice(current_lst)
-            # print(
-            #     f"tabu lst:{tabu_lst} c1={c1} and c2={c2}, checking if they are in tabu lst c1 in={c1 in tabu_lst}, c2 in={c2 in tabu_lst}"
-            # )
-            if i % tabu_limit == 0:
-                tabu_lst = [0]
+        counter = 0
+        while True:
+            counter += 1
+            for i in range(iterations):
+                current_lst = copy.deepcopy(lst)
+                c1 = random.choice(current_lst)
+                c2 = random.choice(current_lst)
+                # print(
+                #     f"tabu lst:{tabu_lst} c1={c1} and c2={c2}, checking if they are in tabu lst c1 in={c1 in tabu_lst}, c2 in={c2 in tabu_lst}"
+                # )
+                if i % tabu_limit == 0:
+                    tabu_lst = [0]
 
-            if c1 in tabu_lst:
-                continue
+                if c1 in tabu_lst:
+                    continue
 
-            if c2 in tabu_lst:
-                continue
+                if c2 in tabu_lst:
+                    continue
 
-            if c1 == c2:
-                continue
+                if c1 == c2:
+                    continue
 
-            tabu_lst.append(c1)
-            tabu_lst.append(c2)
-            current_lst[np.where(lst == c1)] = c2
-            current_lst[np.where(lst == c2)] = c1
+                tabu_lst.append(c1)
+                tabu_lst.append(c2)
+                current_lst[np.where(lst == c1)] = c2
+                current_lst[np.where(lst == c2)] = c1
 
-            solution_dist = self.get_total_solution_distace(current_lst)
-            num_of_vehicles = self.get_total_num_vehicles(current_lst)
+                solution_dist = self.get_total_solution_distace(current_lst)
+                num_of_vehicles = self.get_total_num_vehicles(current_lst)
 
-            new_solution = Solution(
-                self.graph, current_lst, solution_dist, num_of_vehicles
-            )
-            solution_fitness = new_solution.get_total_fitness()
-            if (
-                new_solution.check_capacity_constrain()
-                and new_solution.check_time_constrain()
-            ):
-                if solution_fitness > solution.get_total_fitness():
-                    population.append(new_solution)
-
-                else:
-                    p = random.random()
-                    if p > 0.5:
+                new_solution = Solution(
+                    self.graph, current_lst, solution_dist, num_of_vehicles
+                )
+                solution_fitness = new_solution.get_total_fitness()
+                if (
+                    new_solution.check_capacity_constrain()
+                    and new_solution.check_time_constrain()
+                ):
+                    if solution_fitness > solution.get_total_fitness():
                         population.append(new_solution)
-                    else:
-                        continue
 
-        population_fitnesses = [solution.get_total_fitness() for solution in population]
+                    else:
+                        p = random.random()
+                        if p > 0.5:
+                            population.append(new_solution)
+                        else:
+                            continue
+
+            population_fitnesses = [
+                solution.get_total_fitness() for solution in population
+            ]
+            if len(population_fitnesses) != 0:
+                break
+            else:
+                print("searching for better solution")
+            if counter > 10:
+                print("counter >10")
+                break
+
+        if len(population_fitnesses) == 0:
+            print("always tabu search failed!")
+            return solution
+
         population_best_fitness = max(population_fitnesses)
         index = population_fitnesses.index(population_best_fitness)
         best_sol = population[index]
-
+        print("found feasible better solution from tabu search")
         return best_sol
 
     def fitness_value(self, solution):
@@ -189,12 +224,170 @@ class GeneticAlgorithm:
 
         return population
 
-    def run_algorithm(self, gen_size, pop_size):
-        for i in range(gen_size):
-            # function to generate initial solution
-            population = self.generate_population(20)
+    def choose_parents(self, population, population_fitnesses):
+        # normalizing fitnesses
+        total_fitnesses = sum(population_fitnesses)
+        normalized_fitnesses = [
+            fitness / total_fitnesses for fitness in population_fitnesses
+        ]
+        parent_indices = np.random.choice(
+            range(len(population)), size=2, p=normalized_fitnesses
+        )
+        return [population[i] for i in parent_indices]
 
-            # define fitness function
+    def repair_operator(self, solution):
+        lst = copy.deepcopy(solution.travel_path)
+        added_customers = []
+        for i, customer in enumerate(lst.copy()):
+            if customer == 0:
+                added_customers.append(customer)
+
+            if customer in added_customers:
+                pass
+            else:
+                added_customers.append(customer)
+
+        new_solution = Solution(
+            self.graph,
+            added_customers,
+            self.get_total_solution_distace(added_customers),
+            self.get_total_num_vehicles(added_customers),
+        )
+        return new_solution
+
+    def crossover(self, parent1, parent2):
+        # Choose a random crossover point
+        crossover_point = np.random.randint(1, len(parent1.travel_path))
+        print(f"cross over point:{crossover_point}")
+        # Create the offspring by combining the parents' genes
+        offspring1 = np.concatenate(
+            (
+                [
+                    parent1.travel_path[:crossover_point],
+                    parent2.travel_path[crossover_point:],
+                ]
+            )
+        )
+
+        offspring1 = Solution(
+            self.graph,
+            offspring1,
+            self.get_total_solution_distace(offspring1),
+            self.get_total_num_vehicles(offspring1),
+        )
+
+        offspring2 = np.concatenate(
+            [
+                parent2.travel_path[:crossover_point],
+                parent1.travel_path[crossover_point:],
+            ]
+        )
+
+        offspring2 = Solution(
+            self.graph,
+            offspring2,
+            self.get_total_solution_distace(offspring2),
+            self.get_total_num_vehicles(offspring2),
+        )
+
+        offspring1 = self.repair_operator(offspring1)
+        offspring2 = self.repair_operator(offspring2)
+        offspring1.get_total_fitness()
+        offspring2.get_total_fitness()
+
+        return offspring1, offspring2
+
+    def mutation(self, solution, mutation_rate):
+        new_path = copy.deepcopy(solution.travel_path)
+        counter = 0
+        while True:
+            counter += 1
+            for i in range(len(new_path)):
+                if solution.travel_path[i] != 0:
+                    if random.random() > mutation_rate:
+                        # choose another random place to swap with
+                        c1 = solution.travel_path[i]
+                        c2 = random.choice(solution.travel_path)
+                        while c2 == c1:
+                            c2 = random.choice(solution.travel_path)
+
+                        new_path[np.where(new_path == c1)] = c2
+                        new_path[np.where(new_path == c2)] = c1
+
+            solution_dist = self.get_total_solution_distace(new_path)
+            num_of_vehicles = self.get_total_num_vehicles(new_path)
+
+            new_solution = Solution(
+                self.graph, new_path, solution_dist, num_of_vehicles
+            )
+            if (
+                new_solution.check_capacity_constrain()
+                and new_solution.check_time_constrain()
+            ):
+                solution_fitness = new_solution.get_total_fitness()
+                return new_solution
+            if counter > 10:
+                print("counter >100")
+
+                return solution
+
+    def create_offspring(self, parents):
+        # apply crossover operator to parents
+        offspring1 = parents[0]
+        offspring2 = parents[1]
+        offspring1, offspring2 = self.crossover(parents[0], parents[1])
+
+        offspring1 = self.mutation(offspring1, 0.3)
+        offspring2 = self.mutation(offspring2, 0.3)
+        offspring1 = self.apply_tabu_search(offspring1, 100, 10)
+        offspring2 = self.apply_tabu_search(offspring2, 100, 10)
+
+        return offspring1, offspring2
+
+    def run_algorithm(self, gen_size, pop_size):
+        population = self.generate_population(pop_size)
+        population_fitnesses = [solution.get_total_fitness() for solution in population]
+        population_best_fitness = max(population_fitnesses)
+        index = population_fitnesses.index(population_best_fitness)
+        best_sol = population[index]
+
+        for g in range(gen_size):
+            print(f"gen:{g}")
+            new_population = []
+            for _ in range(pop_size):
+                population_fitnesses = [
+                    solution.get_total_fitness() for solution in population
+                ]
+                population_best_fitness = max(population_fitnesses)
+                index = population_fitnesses.index(population_best_fitness)
+                best_sol = population[index]
+                p1, p2 = self.choose_parents(population, population_fitnesses)
+                p1.repair_route()
+                p2.repair_route()
+                c1, c2 = self.crossover(p1, p2)
+                c1.repair_route()
+                c2.repair_route()
+                m1 = self.mutation(c1, 0.1)
+                m2 = self.mutation(c2, 0.1)
+                m1.repair_route()
+                m2.repair_route()
+                t1 = self.apply_tabu_search(m1, 100, 10)
+                t2 = self.apply_tabu_search(m2, 100, 10)
+                t1.repair_route()
+                t2.repair_route()
+
+                new_population.append(t1)
+                new_population.append(t2)
+
             population_fitnesses = [
                 solution.get_total_fitness() for solution in population
             ]
+            population_best_fitness = max(population_fitnesses)
+            index = population_fitnesses.index(population_best_fitness)
+            best_sol = population[index]
+            best_sol.repair_route()
+            print(f"best sol travel_distance ={best_sol.travel_distance}")
+            print(f"best solution path: {best_sol.travel_path}")
+            population = new_population
+
+        return best_sol
