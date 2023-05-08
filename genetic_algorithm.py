@@ -101,15 +101,10 @@ class GeneticAlgorithm:
             population = [solution]
             for i in range(0,iterations):
                 print(f"iteration:{i}")
-                population_fitnesses = [solution.get_total_fitness() for solution in population]
-                population_best_fitness = max(population_fitnesses)
-                index = population_fitnesses.index(population_best_fitness)
-                best_sol = population[index]
                 customers = [c for c in range(1,len(customers_locations))]
                 print(f"customers:{customers}")
                 num_customers = len(customers)
                 if num_customers>0:
-                    
                     c1_val = random.choice(customers)
                     c1_idx = np.where(solution.travel_path == c1_val)
                     customers.remove(c1_val)
@@ -145,7 +140,7 @@ class GeneticAlgorithm:
                 new_solution = Solution(self.graph,solution_path, solution_dist, num_of_vehicles)
                 solution_fitness = new_solution.get_total_fitness()
                 if new_solution.check_capacity_constrain() and new_solution.check_time_constrain() :
-                    if solution_fitness>population_best_fitness :
+                    if solution_fitness>solution.get_total_fitness() :
                         population.append(new_solution)
                     else:
                         p = random.random()
