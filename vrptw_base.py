@@ -23,7 +23,7 @@ class Node:
 
 
 class VrptwGraph:
-    def __init__(self, file_path, rho=0.1):
+    def __init__(self, file_path, rho=0.2):
         super()
         # node_num: number of nodes
         # node_dist_mat: matrix of distances between nodes
@@ -40,19 +40,7 @@ class VrptwGraph:
         self.pheromone_mat = np.ones((self.node_num, self.node_num)) * self.init_pheromone_val
         # heuristic information matrix
         self.heuristic_info_mat = 1 / self.node_dist_mat
-
-    def copy(self, init_pheromone_val):
-        # Create a deep copy of the current graph object
-        new_graph = copy.deepcopy(self)
-
-        # Update the initial pheromone value for the new graph
-        new_graph.init_pheromone_val = init_pheromone_val
-
-        # Initialize the pheromone matrix for the new graph with the given initial pheromone value
-        new_graph.pheromone_mat = np.ones((new_graph.node_num, new_graph.node_num)) * init_pheromone_val
-
-        # Return the new graph object with the updated pheromone matrix
-        return new_graph
+        
 
     def create_from_file(self, file_path):
     # Read the positions of the depot and customers from the input file
@@ -88,6 +76,7 @@ class VrptwGraph:
                 node_dist_mat[i][j] = VrptwGraph.calculate_dist(node_a, node_b)
                 node_dist_mat[j][i] = node_dist_mat[i][j]
 
+        #calculate timewindow matrix ? 
         return node_num, nodes, node_dist_mat, vehicle_num, vehicle_capacity
 
     @staticmethod
@@ -104,21 +93,6 @@ class VrptwGraph:
             distance = self.calculate_dist(node,travel_path[idx+1])
             total_distance+=distance
         return total_distance
-    def local_update_pheromone(self, start_ind, end_ind):
-        self.pheromone_mat[start_ind][end_ind] = (1-self.rho) * self.pheromone_mat[start_ind][end_ind] + \
-                                                  self.rho * self.init_pheromone_val
-
-    def global_update_pheromone(self, best_path, best_path_distance):
-        """
-        Update pheromone matrix
-        :return:
-        """
-        self.pheromone_mat = (1-self.rho) * self.pheromone_mat
-
-        current_ind = best_path[0]
-        for next_ind in best_path[1:]:
-            self.pheromone_mat[current_ind][next_ind] += self.rho/best_path_distance
-            current_ind = next_ind
 
     def nearest_neighbor_heuristic(self, max_vehicle_num=None):
         index_to_visit = list(range(1, self.node_num))
@@ -147,10 +121,10 @@ class VrptwGraph:
                 current_load += self.nodes[nearest_next_index].demand
 
                 dist = self.node_dist_mat[current_index][nearest_next_index]
-                wait_time = max(self.nodes[nearest_next_index].ready_time - current_time - dist, 0)
+                wait_time = max(self.nodes[nearest_next_index].ready_time - current_time , 0)
                 service_time = self.nodes[nearest_next_index].service_time
 
-                current_time += dist + wait_time + service_time
+                current_time +=  wait_time + service_time
                 index_to_visit.remove(nearest_next_index)
 
                 travel_distance += self.node_dist_mat[current_index][nearest_next_index]
@@ -177,14 +151,14 @@ class VrptwGraph:
                 continue
 
             dist = self.node_dist_mat[current_index][next_index]
-            wait_time = max(self.nodes[next_index].ready_time - current_time - dist, 0)
+            wait_time = max(self.nodes[next_index].ready_time - current_time, 0)
             service_time = self.nodes[next_index].service_time
             #Check whether it is possible to return to the service station after visiting a customer.
-            if current_time + dist + wait_time + service_time + self.node_dist_mat[next_index][0] > self.nodes[0].due_time:
+            if current_time  + wait_time + service_time + self.node_dist_mat[next_index][0] > self.nodes[0].due_time:
                 continue
 
             # Do not serve customers beyond their due time.
-            if current_time + dist > self.nodes[next_index].due_time:
+            if current_time  > self.nodes[next_index].due_time:
                 continue
 
             if nearest_distance is None or self.node_dist_mat[current_index][next_index] < nearest_distance:
