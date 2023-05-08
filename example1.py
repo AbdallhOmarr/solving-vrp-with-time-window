@@ -1,5 +1,4 @@
 from vrptw_base import VrptwGraph
-=
 
 if __name__ == "__main__":
     file_path = "./solomon-100/r101.txt"
@@ -21,4 +20,3 @@ if __name__ == "__main__":
 
 
 ## this is the working algorithm
-
