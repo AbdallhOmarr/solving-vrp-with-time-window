@@ -58,9 +58,15 @@ class VrptwAcoFigure:
                 while not self.path_queue.empty():
                     info = self.path_queue.get()
 
-                path, distance, used_vehicle_num = info.get_path_info()
+                (
+                    path,
+                    distance,
+                    used_vehicle_num,
+                    num_of_customers,
+                ) = info.get_path_info()
                 self.distance = distance
                 self.used_vehicle_num = used_vehicle_num
+                self.num_of_customers = num_of_customers
                 if path is None:
                     print("[draw figure]: exit")
                     break
@@ -85,8 +91,8 @@ class VrptwAcoFigure:
 
                 # 重新绘制line
                 self.figure_ax.set_title(
-                    "travel distance: %0.2f, number of vehicles: %d "
-                    % (distance, used_vehicle_num)
+                    "travel distance: %0.2f, number of vehicles: %d, num_of_customers: %d "
+                    % (distance, used_vehicle_num, self.num_of_customers)
                 )
                 self._draw_line(path)
 
@@ -146,8 +152,8 @@ class VrptwAcoFigure:
             self.lines.append(line_drawn)
             plt.pause(0.01)
 
-        plot_name = "travel distance- %0.2f - , number of vehicles- %d " % (
-            self.distance,
-            self.used_vehicle_num,
+        plot_name = (
+            "travel distance- %0.2f - , number of vehicles- %d, num of custoemrs- %d "
+            % (self.distance, self.used_vehicle_num, self.num_of_customers)
         )
         plt.savefig(f"solutions/{plot_name}.png")

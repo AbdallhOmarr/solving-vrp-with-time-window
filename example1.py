@@ -1,4 +1,8 @@
-from vrptw_base import VrptwGraph
+from vrptw_base import *
+from genetic_algorithm import *
+import numpy as np
+from vprtw_aco_figure import *
+
 
 if __name__ == "__main__":
     file_path = "./solomon-100/r101.txt"
@@ -8,15 +12,8 @@ if __name__ == "__main__":
     show_figure = True
 
     graph = VrptwGraph(file_path)
+    ga = GeneticAlgorithm(graph)
+    ga.run(30, 15)
 
-    macs = MultipleAntColonySystem(
-        graph,
-        ants_num=ants_num,
-        beta=beta,
-        q0=q0,
-        whether_or_not_to_show_figure=show_figure,
-    )
-    macs.run_multiple_ant_colony_system()
-
-
+    input("click done to complete")
 ## this is the working algorithm

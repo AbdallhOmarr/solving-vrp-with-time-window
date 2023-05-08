@@ -1,11 +1,20 @@
 import numpy as np
 import copy
 
-## first class 
+## first class
 
 
 class Node:
-    def __init__(self, id:int, x: float, y: float, demand: float, ready_time: float, due_time: float, service_time: float):
+    def __init__(
+        self,
+        id: int,
+        x: float,
+        y: float,
+        demand: float,
+        ready_time: float,
+        due_time: float,
+        service_time: float,
+    ):
         super()
         self.id = id
 
@@ -28,24 +37,34 @@ class VrptwGraph:
         # node_num: number of nodes
         # node_dist_mat: matrix of distances between nodes
         # pheromone_mat: matrix of pheromone concentration on paths between nodes
-        self.node_num, self.nodes, self.node_dist_mat, self.vehicle_num, self.vehicle_capacity \
-            = self.create_from_file(file_path)
+        (
+            self.node_num,
+            self.nodes,
+            self.node_dist_mat,
+            self.vehicle_num,
+            self.vehicle_capacity,
+        ) = self.create_from_file(file_path)
         # rho: rate at which pheromone evaporates
         self.rho = rho
         # create pheromone matrix
 
-        self.nnh_travel_path, self.init_pheromone_val, _ = self.nearest_neighbor_heuristic()
-        self.init_pheromone_val = 1/(self.init_pheromone_val * self.node_num)
+        (
+            self.nnh_travel_path,
+            self.init_pheromone_val,
+            _,
+        ) = self.nearest_neighbor_heuristic()
+        self.init_pheromone_val = 1 / (self.init_pheromone_val * self.node_num)
 
-        self.pheromone_mat = np.ones((self.node_num, self.node_num)) * self.init_pheromone_val
+        self.pheromone_mat = (
+            np.ones((self.node_num, self.node_num)) * self.init_pheromone_val
+        )
         # heuristic information matrix
         self.heuristic_info_mat = 1 / self.node_dist_mat
-        
 
     def create_from_file(self, file_path):
-    # Read the positions of the depot and customers from the input file
+        # Read the positions of the depot and customers from the input file
         node_list = []
-        with open(file_path, 'rt') as f:
+        with open(file_path, "rt") as f:
             count = 1
             for line in f:
                 # Extract the number of vehicles and the capacity of each vehicle from line 5
@@ -53,7 +72,7 @@ class VrptwGraph:
                     vehicle_num, vehicle_capacity = line.split()
                     vehicle_num = int(vehicle_num)
                     vehicle_capacity = int(vehicle_capacity)
-                
+
                 # Extract the number of vehicles and the capacity of each vehicle from line 5
                 elif count >= 10:
                     node_list.append(line.split())
@@ -61,7 +80,18 @@ class VrptwGraph:
 
         # Create a list of Node objects from the extracted information
         node_num = len(node_list)
-        nodes = list(Node(int(item[0]), float(item[1]), float(item[2]), float(item[3]), float(item[4]), float(item[5]), float(item[6])) for item in node_list)
+        nodes = list(
+            Node(
+                int(item[0]),
+                float(item[1]),
+                float(item[2]),
+                float(item[3]),
+                float(item[4]),
+                float(item[5]),
+                float(item[6]),
+            )
+            for item in node_list
+        )
 
         # Create a distance matrix between all nodes
         node_dist_mat = np.zeros((node_num, node_num))
@@ -70,28 +100,28 @@ class VrptwGraph:
             # A node has zero distance to itself
 
             node_dist_mat[i][i] = 1e-8
-            for j in range(i+1, node_num):
+            for j in range(i + 1, node_num):
                 node_b = nodes[j]
                 # Calculate the Euclidean distance between nodes a and b and store it in the distance matrix
                 node_dist_mat[i][j] = VrptwGraph.calculate_dist(node_a, node_b)
                 node_dist_mat[j][i] = node_dist_mat[i][j]
 
-        #calculate timewindow matrix ? 
+        # calculate timewindow matrix ?
         return node_num, nodes, node_dist_mat, vehicle_num, vehicle_capacity
 
     @staticmethod
     def calculate_dist(node_a, node_b):
         return np.linalg.norm((node_a.x - node_b.x, node_a.y - node_b.y))
 
-    def calculate_sol_path(self,travel_path):
-        #assuming it will be a solution 
+    def calculate_sol_path(self, travel_path):
+        # assuming it will be a solution
         total_distance = 0
         for idx, node in enumerate(travel_path):
-            if idx >= len(travel_path)-1:
+            if idx >= len(travel_path) - 1:
                 continue
-            
-            distance = self.calculate_dist(node,travel_path[idx+1])
-            total_distance+=distance
+
+            distance = self.calculate_dist(node, travel_path[idx + 1])
+            total_distance += distance
         return total_distance
 
     def nearest_neighbor_heuristic(self, max_vehicle_num=None):
@@ -106,7 +136,9 @@ class VrptwGraph:
             max_vehicle_num = self.node_num
 
         while len(index_to_visit) > 0 and max_vehicle_num > 0:
-            nearest_next_index = self._cal_nearest_next_index(index_to_visit, current_index, current_load, current_time)
+            nearest_next_index = self._cal_nearest_next_index(
+                index_to_visit, current_index, current_load, current_time
+            )
 
             if nearest_next_index is None:
                 travel_distance += self.node_dist_mat[current_index][0]
@@ -121,10 +153,12 @@ class VrptwGraph:
                 current_load += self.nodes[nearest_next_index].demand
 
                 dist = self.node_dist_mat[current_index][nearest_next_index]
-                wait_time = max(self.nodes[nearest_next_index].ready_time - current_time , 0)
+                wait_time = max(
+                    self.nodes[nearest_next_index].ready_time - current_time, 0
+                )
                 service_time = self.nodes[nearest_next_index].service_time
 
-                current_time +=  wait_time + service_time
+                current_time += wait_time + service_time
                 index_to_visit.remove(nearest_next_index)
 
                 travel_distance += self.node_dist_mat[current_index][nearest_next_index]
@@ -134,10 +168,12 @@ class VrptwGraph:
         travel_distance += self.node_dist_mat[current_index][0]
         travel_path.append(0)
 
-        vehicle_num = travel_path.count(0)-1
+        vehicle_num = travel_path.count(0) - 1
         return travel_path, travel_distance, vehicle_num
 
-    def _cal_nearest_next_index(self, index_to_visit, current_index, current_load, current_time):
+    def _cal_nearest_next_index(
+        self, index_to_visit, current_index, current_load, current_time
+    ):
         """
         Find the nearest reachable next index.
         :param index_to_visit:
@@ -153,15 +189,24 @@ class VrptwGraph:
             dist = self.node_dist_mat[current_index][next_index]
             wait_time = max(self.nodes[next_index].ready_time - current_time, 0)
             service_time = self.nodes[next_index].service_time
-            #Check whether it is possible to return to the service station after visiting a customer.
-            if current_time  + wait_time + service_time + self.node_dist_mat[next_index][0] > self.nodes[0].due_time:
+            # Check whether it is possible to return to the service station after visiting a customer.
+            if (
+                current_time
+                + wait_time
+                + service_time
+                + self.node_dist_mat[next_index][0]
+                > self.nodes[0].due_time
+            ):
                 continue
 
             # Do not serve customers beyond their due time.
-            if current_time  > self.nodes[next_index].due_time:
+            if current_time > self.nodes[next_index].due_time:
                 continue
 
-            if nearest_distance is None or self.node_dist_mat[current_index][next_index] < nearest_distance:
+            if (
+                nearest_distance is None
+                or self.node_dist_mat[current_index][next_index] < nearest_distance
+            ):
                 nearest_distance = self.node_dist_mat[current_index][next_index]
                 nearest_ind = next_index
 
@@ -169,15 +214,17 @@ class VrptwGraph:
 
 
 class PathMessage:
-    def __init__(self, path, distance):
+    def __init__(self, path, distance, vehicle_num):
         if path is not None:
             self.path = copy.deepcopy(path)
             self.distance = copy.deepcopy(distance)
-            self.used_vehicle_num = self.path.count(0) - 1
+            self.used_vehicle_num = copy.deepcopy(vehicle_num)
         else:
             self.path = None
             self.distance = None
             self.used_vehicle_num = None
 
     def get_path_info(self):
-        return self.path, self.distance, self.used_vehicle_num
+        num_of_customers = sum([1 for x in self.path[self.path != 0]])
+
+        return self.path, self.distance, self.used_vehicle_num, num_of_customers

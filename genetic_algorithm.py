@@ -10,6 +10,14 @@ import copy
 import time
 from multiprocessing import Process
 from multiprocessing import Queue as MPQueue
+import numpy as np
+import random
+from vprtw_aco_figure import VrptwAcoFigure
+from vrptw_base import VrptwGraph, PathMessage
+from ant import Ant
+from threading import Thread
+from queue import Queue
+import time
 
 
 class Solution:
@@ -21,19 +29,24 @@ class Solution:
         self.dist_matrix = self.graph.node_dist_mat
 
     def repair_route(self):
-        travel_path_copy = copy.deepcopy(self.travel_path)
-        delete_idx = []
-        for i, customer in enumerate(self.travel_path):
-            if i > len(self.travel_path) - 2:
-                break
+        # travel_path_copy = copy.deepcopy(self.travel_path)
+        # delete_idx = []
+        # for i, customer in enumerate(self.travel_path):
+        #     if i > len(self.travel_path) - 2:
+        #         break
 
-            if customer == 0 and self.travel_path[i + 1] == 0:
-                delete_idx.append(i + 1)
+        #     if customer == 0 and self.travel_path[i + 1] == 0:
+        #         delete_idx.append(i + 1)
 
-        travel_path_copy = np.delete(travel_path_copy, delete_idx)
+        # travel_path_copy = np.delete(travel_path_copy, delete_idx)
 
-        self.travel_path = copy.deepcopy(travel_path_copy)
-        self.get_total_fitness()
+        # self.travel_path = copy.deepcopy(travel_path_copy)
+        # self.get_total_fitness()
+        pass
+
+    def get_num_of_customers(self):
+        num_of_customers = sum([1 for x in self.travel_path[self.travel_path != 0]])
+        return num_of_customers
 
     def calculate_path_distance(self):
         total_distance = 0
@@ -344,7 +357,7 @@ class GeneticAlgorithm:
 
         return offspring1, offspring2
 
-    def run_algorithm(self, gen_size, pop_size):
+    def run_algorithm(self, gen_size, pop_size, path_queue_for_figure):
         population = self.generate_population(pop_size)
         population_fitnesses = [solution.get_total_fitness() for solution in population]
         population_best_fitness = max(population_fitnesses)
@@ -386,8 +399,26 @@ class GeneticAlgorithm:
             index = population_fitnesses.index(population_best_fitness)
             best_sol = population[index]
             best_sol.repair_route()
+            path_queue_for_figure.put(
+                PathMessage(
+                    best_sol.travel_path,
+                    best_sol.travel_distance,
+                    self.get_total_num_vehicles(best_sol.travel_path),
+                )
+            )
+
             print(f"best sol travel_distance ={best_sol.travel_distance}")
             print(f"best solution path: {best_sol.travel_path}")
             population = new_population
 
         return best_sol
+
+    def run(self, gen_size, pop_size):
+        path_queue_for_figure = MPQueue()
+        ga_thread = Process(
+            target=self.run_algorithm, args=(gen_size, pop_size, path_queue_for_figure)
+        )
+        ga_thread.start()
+        figure = VrptwAcoFigure(self.graph.nodes, path_queue_for_figure)
+        figure.run()
+        ga_thread.join()
