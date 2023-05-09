@@ -2,7 +2,7 @@ import numpy as np
 import copy
 from vrptw_base import VrptwGraph
 from threading import Event
-
+import random
 
 class Ant:
     def __init__(self, graph: VrptwGraph, start_index=0):
@@ -307,17 +307,170 @@ class Ant:
 
         return None, None, None
 
+
+    def apply_tabu_search(self, solution, iterations, tabu_limit):
+        lst = solution.travel_path
+        tabu_lst = [0]
+        population = []
+        counter = 0
+        while True:
+            counter += 1
+            for i in range(iterations):
+                current_lst = copy.deepcopy(lst)
+                c1 = random.choice(current_lst)
+                c2 = random.choice(current_lst)
+                # print(
+                #     f"tabu lst:{tabu_lst} c1={c1} and c2={c2}, checking if they are in tabu lst c1 in={c1 in tabu_lst}, c2 in={c2 in tabu_lst}"
+                # )
+                if i % tabu_limit == 0:
+                    tabu_lst = [0]
+
+                if c1 in tabu_lst:
+                    continue
+
+                if c2 in tabu_lst:
+                    continue
+
+                if c1 == c2:
+                    continue
+
+                tabu_lst.append(c1)
+                tabu_lst.append(c2)
+                print(f"c1:{c1},c2{c2} customer random")
+                print(f"current lst type:{type(current_lst)}")
+                current_lst[np.where(lst == c1)] = c2
+                current_lst[np.where(lst == c2)] = c1
+
+                solution_dist = self.get_total_solution_distace(current_lst)
+                num_of_vehicles = self.get_total_num_vehicles(current_lst)
+
+                new_solution = Solution(
+                    self.graph, current_lst, solution_dist, num_of_vehicles
+                )
+                solution_fitness = new_solution.get_total_fitness()
+                if (
+                    new_solution.check_capacity_constrain()
+                    and new_solution.check_time_constrain()
+                ):
+                    if solution_fitness > solution.get_total_fitness():
+                        population.append(new_solution)
+
+                    else:
+                        p = random.random()
+                        if p > 0.5:
+                            population.append(new_solution)
+                        else:
+                            continue
+
+            population_fitnesses = [
+                solution.get_total_fitness() for solution in population
+            ]
+            if len(population_fitnesses) != 0:
+                break
+            else:
+                print("searching for better solution")
+            if counter > 10:
+                print("counter >10")
+                break
+
+        if len(population_fitnesses) == 0:
+            print("always tabu search failed!")
+            return solution
+
+        population_best_fitness = max(population_fitnesses)
+        index = population_fitnesses.index(population_best_fitness)
+        best_sol = population[index]
+        print("found feasible better solution from tabu search")
+        return best_sol
+
+    def local_search_once_tabu(graph: VrptwGraph, travel_path: list, travel_distance: float, i_start, stop_event: Event):
+        print(f"[Tabu search]: started with distance {travel_distance}")
+        tabu_limit = 5
+        lst = np.array(travel_path)
+        tabu_lst = [0]
+        population = []
+        counter = 0
+        while True:
+            counter += 1
+            for i in range(20):
+                current_lst = copy.deepcopy(lst)
+                c1 = random.choice(current_lst)
+                c2 = random.choice(current_lst)
+                if i % tabu_limit == 0:
+                    tabu_lst = [0]
+
+                if c1 in tabu_lst:
+                    continue
+
+                if c2 in tabu_lst:
+                    continue
+
+                if c1 == c2:
+                    continue
+
+                tabu_lst.append(c1)
+                tabu_lst.append(c2)
+                current_lst[np.where(lst == c1)] = c2
+                current_lst[np.where(lst == c2)] = c1
+
+                #new solution path : current_lst
+                new_path = list(current_lst)
+                # need to create ana ant to check its feasibility 
+                depot_before_start_a = 0
+                success_route_a = False
+                check_ant = Ant(graph, new_path[depot_before_start_a])
+                for ind in new_path[depot_before_start_a + 1:]:
+                    if check_ant.check_condition(ind):
+                        check_ant.move_to_next_index(ind)
+                        if graph.nodes[ind].is_depot:
+                            success_route_a = True
+                            break
+                    else:
+                        break
+                
+
+                # then add it to the population lst 
+                if success_route_a:
+                    total_travel_distance = Ant.cal_total_travel_distance(graph, new_path)
+                    population.append([new_path,total_travel_distance])
+                    # if self.total_travel_distance > total_travel_distance:
+                    #     print("[Tabu search] found better solution")
+                    #     self.total_travel_distance = total_travel_distance
+                    #     self.travel_path = travel_path
+
+                    break
+                # then try again untill all map is explored
+
+            if counter>10:
+                break
+            else:
+                pass                
+        best_pair = [None,10000000]
+        for pair in population:
+            if pair[1]<best_pair[1]:
+                best_pair = pair
+                
+        print(f"[Tabu search]: finished with distance {best_pair[1]}")
+
+        return best_pair
+
     def local_search_procedure(self, stop_event: Event):
         """
         对当前的已经访问完graph中所有节点的travel_path使用cross进行局部搜索
         :return:
         """
+        print("[local_search_procedure]: local search Has started")
         new_path = copy.deepcopy(self.travel_path)
         new_path_distance = self.total_travel_distance
         times = 100
         count = 0
         i_start = 1
         while count < times:
+            print("-"*100)
+            tabu_path,tabu_distance = Ant.local_search_once_tabu(self.graph, new_path, new_path_distance, i_start, stop_event)
+            
+            print("-"*100)
+
             temp_path, temp_distance, temp_i = Ant.local_search_once(self.graph, new_path, new_path_distance, i_start, stop_event)
             if temp_path is not None:
                 count += 1
@@ -331,9 +484,22 @@ class Ant:
                 i_start = max(i_start, 1)
             else:
                 break
+        
+        if self.total_travel_distance>tabu_distance and tabu_distance !=0:
+            print("tabu is better than temp alg")
+            print(f"temp distance:{self.total_travel_distance}, tabu distance:{tabu_distance}")
 
-        self.travel_path = new_path
-        self.total_travel_distance = new_path_distance
+            self.total_travel_distance = tabu_distance
+            self.travel_path = tabu_path
+
+        else:
+            print("temp is better than tabu alg")
+
+            print(f"temp distance:{self.total_travel_distance}, tabu distance:{tabu_distance}")
+            self.travel_path = new_path
+            self.total_travel_distance = new_path_distance
+
+            
         print('[local_search_procedure]: local search finished')
 
 

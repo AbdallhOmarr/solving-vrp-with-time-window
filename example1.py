@@ -4,9 +4,9 @@ from multiple_ant_colony_system import MultipleAntColonySystem
 
 if __name__ == "__main__":
     file_path = "./solomon-100/r101.txt"
-    ants_num = 50
+    ants_num = 10
     beta = 1
-    q0 = 0.03
+    q0 = 0.1
     show_figure = True
 
     graph = VrptwGraph(file_path)
