@@ -560,6 +560,7 @@ class MultipleAntColonySystem:
                         "[macs]: distance of found path (%f) better than best path's (%f)"
                         % (found_path_distance, self.best_path_distance),
                     )
+                    self.print_and_write_in_file(file_to_write,self.best_path)
                     self.print_and_write_in_file(
                         file_to_write,
                         "it takes %0.3f second from multiple_ant_colony_system running"

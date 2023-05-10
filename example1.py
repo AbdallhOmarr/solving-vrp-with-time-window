@@ -3,7 +3,7 @@ from multiple_ant_colony_system import MultipleAntColonySystem
 
 
 if __name__ == "__main__":
-    file_path = "./solomon-100/r105.txt"
+    file_path = "./solomon-100/r101.txt"
     write_path = "./solution text.txt"
     ants_num = 10
     beta = 1
